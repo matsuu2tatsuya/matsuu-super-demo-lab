@@ -31,9 +31,16 @@ export async function fetchConfig(): Promise<ConfigResponse> {
 }
 
 export async function inspect(request: InspectRequest, passcode: string | null): Promise<InspectResponse> {
-  const headers: Record<string, string> = { "content-type": "application/json" };
+  // multipart で送る。base64 は端末側で作り、Worker 側は文字列をそのまま Gemini に渡す(CPU 節約)。
+  const form = new FormData();
+  if (request.itemLabel) form.append("itemLabel", request.itemLabel);
+  for (const img of request.images) {
+    form.append("image", img.dataBase64);
+    form.append("mimeType", img.mimeType);
+  }
+  const headers: Record<string, string> = {};
   if (passcode) headers[PASSCODE_HEADER] = passcode;
-  const res = await fetch("/api/inspect", { method: "POST", headers, body: JSON.stringify(request) });
+  const res = await fetch("/api/inspect", { method: "POST", headers, body: form });
   if (!res.ok) throw await toClientError(res);
   return (await res.json()) as InspectResponse;
 }

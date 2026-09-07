@@ -1,3 +1,4 @@
+import { MdDeleteOutline, MdDownload, MdHistory } from "react-icons/md";
 import { VERDICT_LABEL_JA } from "../../shared/contract";
 import { countByType, toCsv, type HistoryEntry } from "../lib/history";
 
@@ -17,57 +18,53 @@ function downloadCsv(entries: HistoryEntry[]) {
 }
 
 export function HistoryPanel({ entries, onClear }: Props) {
-  if (entries.length === 0) {
-    return <p className="note">まだ記録がありません。判定するとこの端末に自動で記録されます。</p>;
-  }
   return (
     <>
-      <div style={{ overflowX: "auto" }}>
-        <table className="history-table">
-          <thead>
-            <tr>
-              <th>時刻</th>
-              <th>対象</th>
-              <th>判定</th>
-              <th className="num">不良候補</th>
-              <th className="num">秒</th>
-              <th>写真</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e) => {
-              const counts = countByType(e.result);
-              const total = Object.values(counts).reduce((a, b) => a + b, 0);
-              return (
-                <tr key={e.id}>
-                  <td>{new Date(e.createdAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}</td>
-                  <td>{e.itemLabel || "-"}</td>
-                  <td>
-                    <span className={`pill verdict-${e.result.verdict}`}>{VERDICT_LABEL_JA[e.result.verdict]}</span>
-                  </td>
-                  <td className="num">{total}</td>
-                  <td className="num">{(e.result.latencyMs / 1000).toFixed(1)}</td>
-                  <td>
-                    <div className="history-thumbs">
-                      {e.images.map((img, i) => (
-                        <img key={i} src={img.thumbnailDataUrl} alt="" />
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className="history-head">
+        <span className="count">{entries.length} 件</span>
+        {entries.length > 0 ? (
+          <div className="history-actions">
+            <button type="button" className="icon-btn" onClick={() => downloadCsv(entries)}>
+              <MdDownload size={16} />
+              CSV
+            </button>
+            <button type="button" className="icon-btn danger" onClick={onClear} aria-label="記録を消す">
+              <MdDeleteOutline size={16} />
+            </button>
+          </div>
+        ) : null}
       </div>
-      <div className="btn-row" style={{ marginTop: 12 }}>
-        <button type="button" className="btn btn-secondary" onClick={() => downloadCsv(entries)}>
-          CSV を書き出す
-        </button>
-        <button type="button" className="btn btn-ghost" onClick={onClear}>
-          記録を消す
-        </button>
-      </div>
+      {entries.length === 0 ? (
+        <div className="empty">
+          <MdHistory size={22} />
+          判定するとこの端末に自動で記録されます。
+        </div>
+      ) : (
+        <ul className="history-list">
+          {entries.map((e) => {
+            const counts = countByType(e.result);
+            const total = Object.values(counts).reduce((a, b) => a + b, 0);
+            const first = e.images[0];
+            return (
+              <li className="history-item" key={e.id}>
+                <div className="history-thumb-more">
+                  {first ? <img className="history-thumb" src={first.thumbnailDataUrl} alt="" /> : <div className="history-thumb" />}
+                  {e.images.length > 1 ? <b>+{e.images.length - 1}</b> : null}
+                </div>
+                <div className="history-main">
+                  <div className="history-title">{e.itemLabel || "名称なし"}</div>
+                  <div className="history-meta">
+                    {new Date(e.createdAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    {" / 候補 "}
+                    {total} 件 / {(e.result.latencyMs / 1000).toFixed(1)} 秒
+                  </div>
+                </div>
+                <span className={`pill pill-${e.result.verdict}`}>{VERDICT_LABEL_JA[e.result.verdict]}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       <p className="note">記録はこの端末のブラウザにだけ残ります。CSV は Excel でそのまま開けます。</p>
     </>
   );

@@ -4,7 +4,7 @@
 
 | デモ | 内容 | URL |
 | --- | --- | --- |
-| [demos/mizuho-inspection](demos/mizuho-inspection) | スマホ写真から傷・凹み・塗装ムラを検出する AI 外観検品デモ | (デプロイ後に記載) |
+| [demos/mizuho-inspection](demos/mizuho-inspection) | スマホ写真から傷・凹み・塗装ムラを検出する AI 外観検品デモ | https://mizuho-inspection.mizuho-inspection.workers.dev |
 
 ## デモを増やすとき
 

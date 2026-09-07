@@ -1,3 +1,4 @@
+import { MdCancel, MdCheckCircle, MdErrorOutline, MdMemory, MdPhotoSizeSelectActual, MdTimer } from "react-icons/md";
 import {
   DEFECT_LABEL_JA,
   IMAGE_QUALITY_LABEL_JA,
@@ -6,12 +7,25 @@ import {
   type Defect,
   type ImageResult,
   type InspectResponse,
+  type Verdict,
 } from "../../shared/contract";
 import type { PreparedImage } from "../lib/image";
 
 interface Props {
   result: InspectResponse;
   images: PreparedImage[];
+}
+
+const VERDICT_SUB: Record<Verdict, string> = {
+  ok: "不良候補なし",
+  review: "人の再確認が必要",
+  ng: "不良候補あり",
+};
+
+function VerdictIcon({ verdict }: { verdict: Verdict }) {
+  if (verdict === "ok") return <MdCheckCircle size={30} />;
+  if (verdict === "review") return <MdErrorOutline size={30} />;
+  return <MdCancel size={30} />;
 }
 
 function percent(n: number): string {
@@ -27,19 +41,32 @@ function DefectBox({ defect, index }: { defect: Defect; index: number }) {
       style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: `${width * 100}%`, height: `${height * 100}%` }}
     >
       <span>
-        #{index} {DEFECT_LABEL_JA[defect.type]}
+        {index} {DEFECT_LABEL_JA[defect.type]}
       </span>
     </div>
   );
 }
 
 function PhotoResult({ image, preview, startIndex }: { image: ImageResult; preview: PreparedImage | undefined; startIndex: number }) {
+  const hasBoxes = image.defects.some((d) => d.box);
   return (
     <section className="photo-block">
-      <h3>
-        写真 {image.imageIndex + 1}
-        {image.quality !== "ok" ? <span className="tag tag-muted" style={{ marginLeft: 8 }}>{IMAGE_QUALITY_LABEL_JA[image.quality]}</span> : null}
-      </h3>
+      <div className="photo-head">
+        <h3>写真 {image.imageIndex + 1}</h3>
+        {image.quality !== "ok" ? <span className="tag tag-muted">{IMAGE_QUALITY_LABEL_JA[image.quality]}</span> : null}
+        {hasBoxes ? (
+          <div className="legend" aria-hidden="true">
+            <span>
+              <i style={{ background: "var(--ng)" }} />
+              重大
+            </span>
+            <span>
+              <i style={{ background: "var(--review)" }} />
+              軽微
+            </span>
+          </div>
+        ) : null}
+      </div>
       {preview ? (
         <div className="photo">
           <img src={preview.previewUrl} alt={`写真 ${image.imageIndex + 1} の判定結果`} />
@@ -53,13 +80,16 @@ function PhotoResult({ image, preview, startIndex }: { image: ImageResult; previ
         <ul className="defects">
           {image.defects.map((d, i) => (
             <li key={i}>
-              <span className={`tag tag-${d.severity}`}>{SEVERITY_LABEL_JA[d.severity]}</span>
-              <strong>
-                #{startIndex + i + 1} {DEFECT_LABEL_JA[d.type]}
-              </strong>
-              <span className="conf">確度 {percent(d.confidence)}</span>
-              {!d.box ? <span className="conf">位置なし</span> : null}
-              {d.descriptionJa ? <div>{d.descriptionJa}</div> : null}
+              <span className={`defect-no ${d.severity}`}>{startIndex + i + 1}</span>
+              <div>
+                <div className="defect-title">
+                  {DEFECT_LABEL_JA[d.type]}
+                  <span className={`tag tag-${d.severity}`}>{SEVERITY_LABEL_JA[d.severity]}</span>
+                  <span className="conf">確度 {percent(d.confidence)}</span>
+                  {!d.box ? <span className="conf">位置なし</span> : null}
+                </div>
+                {d.descriptionJa ? <div className="defect-desc">{d.descriptionJa}</div> : null}
+              </div>
             </li>
           ))}
         </ul>
@@ -74,24 +104,45 @@ export function ResultView({ result, images }: Props) {
   let counter = 0;
   return (
     <>
-      <div className="verdict">
-        <span className={`verdict-badge verdict-${result.verdict}`}>{VERDICT_LABEL_JA[result.verdict]}</span>
-        <p className="verdict-reason">{result.reasonJa}</p>
+      <div className={`verdict verdict-${result.verdict}`}>
+        <span className="verdict-icon">
+          <VerdictIcon verdict={result.verdict} />
+        </span>
+        <div>
+          <div className="verdict-label">{VERDICT_SUB[result.verdict]}</div>
+          <div className="verdict-title">{VERDICT_LABEL_JA[result.verdict]}</div>
+          <p className="verdict-reason">{result.reasonJa}</p>
+        </div>
       </div>
-      <p className="meta">
-        判定時間 {(result.latencyMs / 1000).toFixed(1)} 秒 / モデル {result.model}
-      </p>
-      {result.images.map((img) => {
-        const start = counter;
-        counter += img.defects.length;
-        return <PhotoResult key={img.imageIndex} image={img} preview={images[img.imageIndex]} startIndex={start} />;
-      })}
-      {result.overallCommentJa ? (
-        <section className="photo-block">
-          <h3>所見</h3>
-          <div style={{ fontSize: 14 }}>{result.overallCommentJa}</div>
-        </section>
-      ) : null}
+      <div className="result-body">
+        <div className="chips">
+          <span className="chip">
+            <MdTimer size={14} />
+            判定 {(result.latencyMs / 1000).toFixed(1)} 秒
+          </span>
+          <span className="chip">
+            <MdPhotoSizeSelectActual size={14} />
+            写真 {result.images.length} 枚
+          </span>
+          <span className="chip">
+            <MdMemory size={14} />
+            {result.model}
+          </span>
+        </div>
+        {result.images.map((img) => {
+          const start = counter;
+          counter += img.defects.length;
+          return <PhotoResult key={img.imageIndex} image={img} preview={images[img.imageIndex]} startIndex={start} />;
+        })}
+        {result.overallCommentJa ? (
+          <section className="photo-block">
+            <div className="photo-head">
+              <h3>所見</h3>
+            </div>
+            <div className="quote">{result.overallCommentJa}</div>
+          </section>
+        ) : null}
+      </div>
     </>
   );
 }
