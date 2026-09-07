@@ -57,6 +57,7 @@ export function HistoryPanel({ entries, onClear }: Props) {
                     {new Date(e.createdAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     {" / 候補 "}
                     {total} 件 / {(e.result.latencyMs / 1000).toFixed(1)} 秒
+                    {e.result.referenceUsed ? " / 見本あり" : " / 見本なし"}
                   </div>
                 </div>
                 <span className={`pill pill-${e.result.verdict}`}>{VERDICT_LABEL_JA[e.result.verdict]}</span>

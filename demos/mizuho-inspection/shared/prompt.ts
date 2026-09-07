@@ -14,10 +14,28 @@ export const SYSTEM_PROMPT = `あなたは塗装済み金属部品(鉄製ボッ�
 - 写真に塗装された金属部品が写っていない場合は quality を not_target にし、defects は空にする。
 - ピンボケなら blurry、暗すぎて判断できないなら dark。判定できるなら ok。
 - OK か NG かの結論は書かない。結論は人間と別のシステムが決める。
-- 文章はすべて日本語で、短く具体的に。`;
+- 文章はすべて日本語で、短く具体的に。
 
-export function buildUserPrompt(imageCount: number, itemLabel?: string): string {
+見本と基準が渡された場合の追加ルール:
+- 「正常品の見本写真」が渡されたら、見本にも同じように写っている形状(穴、継ぎ目、刻印、スリット、色の境目、模様など)は製品の仕様であり、不良として報告しない。
+- 見本と比べて検品対象にだけ見える差分のうち、不良に当たるものだけを報告する。角度や照明の違いによる見え方の差は不良ではない。
+- 「顧客の品質基準」が渡されたら、severity と報告対象の判断にそれを優先して使う。基準で対象外とされた面や種類は報告しない。基準に数値があれば、写真から推定できる範囲で当てはめ、推定であることを descriptionJa に書く。
+- imageIndex は検品対象の写真だけを渡した順に 0 から数える。見本写真には番号を付けない。`;
+
+export function buildReferenceIntro(count: number, label?: string): string {
+  const who = label && label.trim() ? `型番「${label.trim()}」の` : "";
+  return `【${who}正常品の見本写真: ${count} 枚】
+この後に続く ${count} 枚は合格品です。ここに写っている形状はすべて製品の仕様です。番号は付けません。`;
+}
+
+export function buildTargetIntro(count: number): string {
+  return `【検品対象の写真: ${count} 枚】
+この後に続く ${count} 枚が検品対象です。imageIndex は 0 から ${count - 1} です。`;
+}
+
+export function buildUserPrompt(imageCount: number, itemLabel?: string, criteria?: string): string {
   const label = itemLabel && itemLabel.trim() ? `対象の識別名: ${itemLabel.trim()}\n` : "";
-  return `${label}写真は ${imageCount} 枚あります。imageIndex は渡した順に 0 から ${imageCount - 1} です。
-それぞれの写真について観察結果を JSON で返してください。入力と同じ枚数、同じ順番で返すこと。`;
+  const rules = criteria && criteria.trim() ? `\n【顧客の品質基準】\n${criteria.trim()}\n` : "";
+  return `${label}検品対象の写真は ${imageCount} 枚あります。imageIndex は渡した順に 0 から ${imageCount - 1} です。${rules}
+検品対象のそれぞれの写真について観察結果を JSON で返してください。検品対象と同じ枚数、同じ順番で返すこと。`;
 }

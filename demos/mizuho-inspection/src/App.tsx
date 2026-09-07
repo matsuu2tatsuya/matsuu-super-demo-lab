@@ -11,11 +11,21 @@ import {
   MdRefresh,
   MdSaveAlt,
 } from "react-icons/md";
-import { MAX_IMAGES, MAX_ITEM_LABEL_LENGTH, type ConfigResponse, type InspectResponse } from "../shared/contract";
+import {
+  MAX_IMAGES,
+  MAX_ITEM_LABEL_LENGTH,
+  SAMPLE_CRITERIA,
+  SAMPLE_LABEL,
+  type ConfigResponse,
+  type InspectResponse,
+  type ReferenceMeta,
+} from "../shared/contract";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { PhotoPicker } from "./components/PhotoPicker";
+import { ReferencePanel } from "./components/ReferencePanel";
 import { ResultView } from "./components/ResultView";
-import { ApiClientError, apiErrorMessage, fetchConfig, inspect } from "./lib/api";
+import { SamplePanel, type SampleKind } from "./components/SamplePanel";
+import { ApiClientError, apiErrorMessage, fetchConfig, inspect, listReferences, normalizeLabel, saveReference } from "./lib/api";
 import { clearHistory, loadHistory, saveHistory, type HistoryEntry } from "./lib/history";
 import { prepareErrorMessage, prepareImage, type PreparedImage } from "./lib/image";
 
@@ -50,6 +60,13 @@ function useElapsedSeconds(active: boolean): number {
     return () => clearInterval(timer);
   }, [active]);
   return seconds;
+}
+
+async function fetchAsFile(url: string, name: string): Promise<File> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("sample_fetch_failed");
+  const blob = await res.blob();
+  return new File([blob], name, { type: blob.type || "image/png" });
 }
 
 function AppBar() {
@@ -115,7 +132,11 @@ export default function App() {
   const [resultImages, setResultImages] = useState<PreparedImage[]>([]);
   const [resultLabel, setResultLabel] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
+  const [references, setReferences] = useState<ReferenceMeta[]>([]);
+  const [useReference, setUseReference] = useState(true);
+  const [sampleLoading, setSampleLoading] = useState<SampleKind | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
+  const inspectRef = useRef<HTMLDivElement>(null);
   const elapsed = useElapsedSeconds(busy);
 
   useEffect(() => {
@@ -127,6 +148,26 @@ export default function App() {
   const maxImages = config?.maxImages ?? MAX_IMAGES;
   const passcodeRequired = Boolean(config?.passcodeRequired);
   const gateOpen = !passcodeRequired || Boolean(passcode);
+  const referencesEnabled = Boolean(config?.referencesEnabled);
+
+  const refreshReferences = useCallback(async () => {
+    if (!referencesEnabled) return;
+    try {
+      setReferences(await listReferences(passcode));
+    } catch {
+      /* 一覧が取れなくても判定はできる */
+    }
+  }, [referencesEnabled, passcode]);
+
+  useEffect(() => {
+    if (gateOpen) void refreshReferences();
+  }, [gateOpen, refreshReferences]);
+
+  const currentReference = useMemo(() => {
+    const key = normalizeLabel(itemLabel);
+    return key ? (references.find((r) => normalizeLabel(r.label) === key) ?? null) : null;
+  }, [itemLabel, references]);
+  const referenceAvailable = Boolean(currentReference && (currentReference.imageCount > 0 || currentReference.criteria.trim()));
 
   const handleAdd = useCallback(
     async (files: File[]) => {
@@ -164,7 +205,11 @@ export default function App() {
     const label = itemLabel.trim();
     try {
       const res = await inspect(
-        { itemLabel: label || undefined, images: images.map((img) => ({ mimeType: "image/jpeg", dataBase64: img.dataBase64 })) },
+        {
+          itemLabel: label || undefined,
+          images: images.map((img) => ({ mimeType: "image/jpeg", dataBase64: img.dataBase64 })),
+          useReference: useReference && referenceAvailable,
+        },
         passcode,
       );
       setResult(res);
@@ -210,6 +255,31 @@ export default function App() {
     setHistory([]);
   };
 
+  const loadSample = async (kind: SampleKind) => {
+    setSampleLoading(kind);
+    setError(null);
+    try {
+      const existing = references.find((r) => normalizeLabel(r.label) === normalizeLabel(SAMPLE_LABEL));
+      if (referencesEnabled && (!existing || existing.imageCount === 0)) {
+        const ref = await prepareImage(await fetchAsFile("/samples/reference.png", "reference.png"));
+        await saveReference(SAMPLE_LABEL, SAMPLE_CRITERIA, [{ mimeType: "image/jpeg", dataBase64: ref.dataBase64, thumbnailDataUrl: ref.thumbnailDataUrl }], passcode);
+        URL.revokeObjectURL(ref.previewUrl);
+        await refreshReferences();
+      }
+      const target = await prepareImage(await fetchAsFile(`/samples/target-${kind}.png`, `target-${kind}.png`));
+      for (const img of images) URL.revokeObjectURL(img.previewUrl);
+      setImages([target]);
+      setItemLabel(SAMPLE_LABEL);
+      setUseReference(true);
+      setResult(null);
+      setTimeout(() => inspectRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    } catch (e) {
+      setError(e instanceof ApiClientError ? apiErrorMessage(e) : "テストデータを読み込めませんでした。");
+    } finally {
+      setSampleLoading(null);
+    }
+  };
+
   const submitPasscode = () => {
     const v = passcodeInput.trim();
     if (!v) return;
@@ -224,6 +294,7 @@ export default function App() {
       <AppBar />
       <main className="app">
         <Lead />
+        {gateOpen && referencesEnabled ? <SamplePanel loading={sampleLoading} disabled={busy || preparing} onLoad={loadSample} /> : null}
 
         {configError ? (
           <div className="alert">
@@ -290,6 +361,17 @@ export default function App() {
                   onChange={(e) => setItemLabel(e.target.value)}
                 />
               </div>
+              {referencesEnabled ? (
+                <ReferencePanel
+                  label={itemLabel}
+                  meta={currentReference}
+                  references={references}
+                  disabled={busy}
+                  passcode={passcode}
+                  onPickLabel={setItemLabel}
+                  onChanged={refreshReferences}
+                />
+              ) : null}
             </section>
 
             <section className="card">
@@ -313,11 +395,31 @@ export default function App() {
               ) : null}
             </section>
 
-            <section className="card">
+            <section className="card" ref={inspectRef}>
               <div className="card-head">
                 <span className="step">3</span>
                 <h2>判定</h2>
               </div>
+              {referencesEnabled ? (
+                <div className={`switch-row ${useReference && referenceAvailable ? "" : "off"}`}>
+                  <div className="switch-main">
+                    <div className="switch-title">見本と基準を使う</div>
+                    <div className="switch-sub">
+                      {!itemLabel.trim()
+                        ? "型番を入れると、その型番の見本と基準を使えます"
+                        : !referenceAvailable
+                          ? "この型番の見本と基準は未登録です"
+                          : useReference
+                            ? `見本 ${currentReference!.imageCount} 枚${currentReference!.criteria.trim() ? " と品質基準" : ""}を使って判定します`
+                            : "見本と基準を使わず、AI の一般知識だけで判定します"}
+                    </div>
+                  </div>
+                  <label className="switch" aria-label="見本と基準を使う">
+                    <input type="checkbox" checked={useReference && referenceAvailable} disabled={!referenceAvailable || busy} onChange={(e) => setUseReference(e.target.checked)} />
+                    <span />
+                  </label>
+                </div>
+              ) : null}
               <button type="button" className="btn btn-primary btn-lg" disabled={!canInspect} onClick={handleInspect}>
                 {busy ? (
                   <>

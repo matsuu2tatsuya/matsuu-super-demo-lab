@@ -49,6 +49,38 @@ export const MAX_ITEM_LABEL_LENGTH = 60;
 export const IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export type ImageMimeType = (typeof IMAGE_MIME_TYPES)[number];
 
+/** 型番ごとに登録する正常品の見本と品質基準 */
+export const MAX_REFERENCE_IMAGES = 2;
+export const MAX_CRITERIA_LENGTH = 1000;
+export const MAX_REFERENCES = 50;
+/** 同梱サンプルの型番 */
+export const SAMPLE_LABEL = "SAMPLE-BOX";
+export const SAMPLE_CRITERIA = `対象は塗装済み鉄製ボックスの外面。四隅の取付穴、中央の継ぎ目、右上の刻印プレート、下部の通気スリットは製品の仕様。
+長さ 5mm 以上の傷、指で触って分かる凹みは NG。塗装ムラは目立つ範囲が 3cm 以上なら NG、それ未満は軽微。
+照明の映り込みと影は不良ではない。内側は今回の検品対象外。`;
+
+export interface ReferenceMeta {
+  label: string;
+  criteria: string;
+  imageCount: number;
+  mimeTypes: ImageMimeType[];
+  /** 一覧表示用の小さいサムネイル(data: URL) */
+  thumbnails: string[];
+  updatedAt: string;
+}
+
+export interface ReferenceData {
+  label: string;
+  criteria: string;
+  images: InspectRequestImage[];
+}
+
+export interface ReferenceUsed {
+  label: string;
+  imageCount: number;
+  hasCriteria: boolean;
+}
+
 export interface InspectRequestImage {
   mimeType: ImageMimeType;
   /** base64 (data: プレフィックス無し) */
@@ -58,6 +90,8 @@ export interface InspectRequestImage {
 export interface InspectRequest {
   itemLabel?: string;
   images: InspectRequestImage[];
+  /** 見本と基準。無ければモデルの一般知識だけで判定する */
+  reference?: ReferenceData | null;
 }
 
 /** 0〜1 に正規化した矩形。CSS のパーセント指定でそのまま重ねられる。 */
@@ -91,12 +125,14 @@ export interface InspectResponse {
   overallCommentJa: string;
   latencyMs: number;
   model: string;
+  referenceUsed: ReferenceUsed | null;
 }
 
 export interface ConfigResponse {
   passcodeRequired: boolean;
   model: string;
   maxImages: number;
+  referencesEnabled: boolean;
 }
 
 export interface ApiError {

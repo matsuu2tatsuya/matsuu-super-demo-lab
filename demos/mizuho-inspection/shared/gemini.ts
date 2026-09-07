@@ -6,7 +6,7 @@
  * リクエストの形は SDK(@google/genai 2.21)が送るものをローカルで横取りして確認済み。
  */
 import { GEMINI_RESPONSE_JSON_SCHEMA, deriveVerdict, normalizeGeminiOut, type InspectRequest, type InspectResponse } from "./contract";
-import { SYSTEM_PROMPT, buildUserPrompt } from "./prompt";
+import { SYSTEM_PROMPT, buildReferenceIntro, buildTargetIntro, buildUserPrompt } from "./prompt";
 
 export type ThinkingLevel = "MINIMAL" | "LOW" | "MEDIUM" | "HIGH";
 export type MediaResolution = "MEDIA_RESOLUTION_LOW" | "MEDIA_RESOLUTION_MEDIUM" | "MEDIA_RESOLUTION_HIGH";
@@ -32,13 +32,21 @@ export class GeminiError extends Error {
 const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com";
 const DEFAULT_TIMEOUT_MS = 60_000;
 
+function imagePart(img: { mimeType: string; dataBase64: string }): string {
+  // JSON.stringify は 1 回のネイティブ走査で JSON 安全性を保証する。base64 として不正なら Gemini が 400 を返す。
+  return `{"inlineData":{"mimeType":${JSON.stringify(img.mimeType)},"data":` + JSON.stringify(img.dataBase64) + `}}`;
+}
+
 function buildBody(req: InspectRequest, deps: InspectDeps): string {
   let parts = "";
-  for (const img of req.images) {
-    // JSON.stringify は 1 回のネイティブ走査で JSON 安全性を保証する。base64 として不正なら Gemini が 400 を返す。
-    parts += `{"inlineData":{"mimeType":${JSON.stringify(img.mimeType)},"data":` + JSON.stringify(img.dataBase64) + `}},`;
+  const ref = req.reference;
+  if (ref && ref.images.length > 0) {
+    parts += JSON.stringify({ text: buildReferenceIntro(ref.images.length, ref.label) }) + ",";
+    for (const img of ref.images) parts += imagePart(img) + ",";
+    parts += JSON.stringify({ text: buildTargetIntro(req.images.length) }) + ",";
   }
-  parts += JSON.stringify({ text: buildUserPrompt(req.images.length, req.itemLabel) });
+  for (const img of req.images) parts += imagePart(img) + ",";
+  parts += JSON.stringify({ text: buildUserPrompt(req.images.length, req.itemLabel, ref?.criteria) });
 
   const systemInstruction = JSON.stringify({ parts: [{ text: SYSTEM_PROMPT }], role: "user" });
   const generationConfig = JSON.stringify({
@@ -98,5 +106,8 @@ export async function inspectImages(req: InspectRequest, deps: InspectDeps): Pro
 
   const { images, overallCommentJa } = normalizeGeminiOut(parsed, req.images.length);
   const { verdict, reasonJa } = deriveVerdict(images);
-  return { verdict, reasonJa, images, overallCommentJa, latencyMs, model: deps.model };
+  const referenceUsed = req.reference && (req.reference.images.length > 0 || req.reference.criteria.trim())
+    ? { label: req.reference.label, imageCount: req.reference.images.length, hasCriteria: Boolean(req.reference.criteria.trim()) }
+    : null;
+  return { verdict, reasonJa, images, overallCommentJa, latencyMs, model: deps.model, referenceUsed };
 }

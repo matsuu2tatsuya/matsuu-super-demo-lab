@@ -8,9 +8,11 @@ interface Props {
   disabled: boolean;
   onAdd: (files: File[]) => void;
   onRemove: (id: string) => void;
+  hint?: string;
+  emptyTitle?: string;
 }
 
-export function PhotoPicker({ images, max, disabled, onAdd, onRemove }: Props) {
+export function PhotoPicker({ images, max, disabled, onAdd, onRemove, hint, emptyTitle }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
   const remaining = max - images.length;
@@ -26,8 +28,8 @@ export function PhotoPicker({ images, max, disabled, onAdd, onRemove }: Props) {
       {images.length === 0 ? (
         <div className="dropzone" role="presentation">
           <MdAddAPhoto size={30} />
-          <strong>写真を追加してください</strong>
-          <span>最大 {max} 枚。向きを変えて撮ると全面を見られます</span>
+          <strong>{emptyTitle ?? "写真を追加してください"}</strong>
+          <span>最大 {max} 枚</span>
         </div>
       ) : (
         <div className="thumbs" aria-label="選択中の写真">
@@ -64,7 +66,7 @@ export function PhotoPicker({ images, max, disabled, onAdd, onRemove }: Props) {
       {/* capture 付きは端末のカメラを直接開く。複数選択はライブラリ側だけに付ける。 */}
       <input ref={cameraRef} className="hidden-input" type="file" accept="image/*" capture="environment" onChange={handleChange} tabIndex={-1} />
       <input ref={libraryRef} className="hidden-input" type="file" accept="image/*" multiple onChange={handleChange} tabIndex={-1} />
-      <p className="note">写真は端末内で縮小してから送ります。立てる・寝かせる・回すなど向きを変えて撮ると、全面を確認できます。</p>
+      <p className="note">{hint ?? "写真は端末内で縮小してから送ります。立てる・寝かせる・回すなど向きを変えて撮ると、全面を確認できます。"}</p>
     </>
   );
 }

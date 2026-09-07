@@ -11,6 +11,12 @@
 		"binding": "ASSETS",
 		"not_found_handling": "single-page-application"
 	},
+	"kv_namespaces": [
+		{
+			"binding": "REFERENCES",
+			"id": "9fef461bd8b541f7a54ff8b9de2a8903"
+		}
+	],
 	"vars": {
 		"GEMINI_MODEL": "gemini-3.6-flash",
 		"GEMINI_THINKING_LEVEL": "LOW",

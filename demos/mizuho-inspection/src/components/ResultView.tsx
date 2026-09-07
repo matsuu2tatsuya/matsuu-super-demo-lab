@@ -1,4 +1,4 @@
-import { MdCancel, MdCheckCircle, MdErrorOutline, MdMemory, MdPhotoSizeSelectActual, MdTimer } from "react-icons/md";
+import { MdCancel, MdCheckCircle, MdCompare, MdErrorOutline, MdMemory, MdPhotoSizeSelectActual, MdTimer } from "react-icons/md";
 import {
   DEFECT_LABEL_JA,
   IMAGE_QUALITY_LABEL_JA,
@@ -127,6 +127,12 @@ export function ResultView({ result, images }: Props) {
           <span className="chip">
             <MdMemory size={14} />
             {result.model}
+          </span>
+          <span className={`chip ${result.referenceUsed ? "chip-on" : ""}`}>
+            <MdCompare size={14} />
+            {result.referenceUsed
+              ? `見本 ${result.referenceUsed.imageCount} 枚${result.referenceUsed.hasCriteria ? " + 基準" : ""}`
+              : "見本なし"}
           </span>
         </div>
         {result.images.map((img) => {
