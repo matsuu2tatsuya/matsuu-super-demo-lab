@@ -1,0 +1,4 @@
+# ローカル開発用。`cp .dev.vars.example .dev.vars` して値を入れる(.dev.vars は git 管理外)。
+GEMINI_API_KEY=
+# 空なら合言葉なしで誰でも使える。公開 URL を配るときは設定する。
+DEMO_PASSCODE=
