@@ -150,14 +150,37 @@ export default function App() {
   const gateOpen = !passcodeRequired || Boolean(passcode);
   const referencesEnabled = Boolean(config?.referencesEnabled);
 
-  const refreshReferences = useCallback(async () => {
-    if (!referencesEnabled) return;
-    try {
-      setReferences(await listReferences(passcode));
-    } catch {
-      /* 一覧が取れなくても判定はできる */
-    }
-  }, [referencesEnabled, passcode]);
+  /**
+   * 一覧を取り直す。Workers KV の list は書き込み直後に反映されないことがあるので、
+   * 保存・削除した直後は変更結果を先に手元へ反映してから取り直す。
+   */
+  const refreshReferences = useCallback(
+    async (change?: { upsert?: ReferenceMeta; remove?: string }) => {
+      if (!referencesEnabled) return;
+      if (change) {
+        setReferences((prev) => {
+          const key = normalizeLabel(change.upsert?.label ?? change.remove ?? "");
+          const rest = prev.filter((r) => normalizeLabel(r.label) !== key);
+          return change.upsert ? [...rest, change.upsert] : rest;
+        });
+      }
+      try {
+        const listed = await listReferences(passcode);
+        setReferences((prev) => {
+          if (!change) return listed;
+          // 取り直した一覧に変更がまだ反映されていなければ、手元の変更を優先する
+          const key = normalizeLabel(change.upsert?.label ?? change.remove ?? "");
+          const inListed = listed.find((r) => normalizeLabel(r.label) === key);
+          if (change.upsert && !inListed) return [...listed, change.upsert];
+          if (change.remove && inListed) return listed.filter((r) => normalizeLabel(r.label) !== key);
+          return prev === listed ? prev : listed;
+        });
+      } catch {
+        /* 一覧が取れなくても判定はできる */
+      }
+    },
+    [referencesEnabled, passcode],
+  );
 
   useEffect(() => {
     if (gateOpen) void refreshReferences();
@@ -262,9 +285,9 @@ export default function App() {
       const existing = references.find((r) => normalizeLabel(r.label) === normalizeLabel(SAMPLE_LABEL));
       if (referencesEnabled && (!existing || existing.imageCount === 0)) {
         const ref = await prepareImage(await fetchAsFile("/samples/reference.jpg", "reference.jpg"));
-        await saveReference(SAMPLE_LABEL, SAMPLE_CRITERIA, [{ mimeType: "image/jpeg", dataBase64: ref.dataBase64, thumbnailDataUrl: ref.thumbnailDataUrl }], passcode);
+        const saved = await saveReference(SAMPLE_LABEL, SAMPLE_CRITERIA, [{ mimeType: "image/jpeg", dataBase64: ref.dataBase64, thumbnailDataUrl: ref.thumbnailDataUrl }], passcode);
         URL.revokeObjectURL(ref.previewUrl);
-        await refreshReferences();
+        await refreshReferences({ upsert: saved });
       }
       const target = await prepareImage(await fetchAsFile(`/samples/target-${kind}.jpg`, `target-${kind}.jpg`));
       for (const img of images) URL.revokeObjectURL(img.previewUrl);

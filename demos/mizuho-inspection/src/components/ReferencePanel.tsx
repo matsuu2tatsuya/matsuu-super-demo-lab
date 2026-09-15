@@ -12,7 +12,8 @@ interface Props {
   disabled: boolean;
   passcode: string | null;
   onPickLabel: (label: string) => void;
-  onChanged: () => Promise<void>;
+  /** 保存・削除の結果を渡すと、一覧の取り直しが遅れても手元に先に反映される */
+  onChanged: (change?: { upsert?: ReferenceMeta; remove?: string }) => Promise<void>;
 }
 
 export function ReferencePanel({ label, meta, references, disabled, passcode, onPickLabel, onChanged }: Props) {
@@ -76,14 +77,14 @@ export function ReferencePanel({ label, meta, references, disabled, passcode, on
     try {
       // 写真を選び直していなければ既存の見本写真は残し、基準だけ更新する。写真を選んだら置き換える。
       const keepImages = refImages.length === 0 && Boolean(meta && meta.imageCount > 0);
-      await saveReference(
+      const saved = await saveReference(
         trimmed,
         criteria,
         refImages.map((img) => ({ mimeType: "image/jpeg", dataBase64: img.dataBase64, thumbnailDataUrl: img.thumbnailDataUrl })),
         passcode,
         { keepImages },
       );
-      await onChanged();
+      await onChanged({ upsert: saved });
       cancelEdit();
     } catch (e) {
       setError(apiErrorMessage(e));
@@ -99,7 +100,7 @@ export function ReferencePanel({ label, meta, references, disabled, passcode, on
     setError(null);
     try {
       await deleteReference(trimmed, passcode);
-      await onChanged();
+      await onChanged({ remove: trimmed });
     } catch (e) {
       setError(apiErrorMessage(e));
     } finally {
