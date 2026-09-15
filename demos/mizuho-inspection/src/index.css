@@ -276,3 +276,4 @@ svg { flex: none; }
 .switch input:checked + span::after { transform: translateX(20px); }
 .switch input:disabled + span { opacity: 0.5; cursor: not-allowed; }
 .sample-card { border: 1px dashed #cdd8d2; box-shadow: none; background: #fafcfb; }
+.sample-card .credit { font-size: 11px; opacity: 0.8; }

@@ -66,7 +66,7 @@ async function fetchAsFile(url: string, name: string): Promise<File> {
   const res = await fetch(url);
   if (!res.ok) throw new Error("sample_fetch_failed");
   const blob = await res.blob();
-  return new File([blob], name, { type: blob.type || "image/png" });
+  return new File([blob], name, { type: blob.type || "image/jpeg" });
 }
 
 function AppBar() {
@@ -77,8 +77,8 @@ function AppBar() {
           <MdCenterFocusStrong size={20} />
         </span>
         <div>
-          <div className="brand-title">AI外観検品</div>
-          <div className="brand-sub">写真で傷・凹み・塗装ムラを探す</div>
+          <div className="brand-title">MEKIKI</div>
+          <div className="brand-sub">AI 外観検品 / 写真で傷・凹み・塗装ムラを探す</div>
         </div>
         <span className="chip-demo">DEMO</span>
       </div>
@@ -261,12 +261,12 @@ export default function App() {
     try {
       const existing = references.find((r) => normalizeLabel(r.label) === normalizeLabel(SAMPLE_LABEL));
       if (referencesEnabled && (!existing || existing.imageCount === 0)) {
-        const ref = await prepareImage(await fetchAsFile("/samples/reference.png", "reference.png"));
+        const ref = await prepareImage(await fetchAsFile("/samples/reference.jpg", "reference.jpg"));
         await saveReference(SAMPLE_LABEL, SAMPLE_CRITERIA, [{ mimeType: "image/jpeg", dataBase64: ref.dataBase64, thumbnailDataUrl: ref.thumbnailDataUrl }], passcode);
         URL.revokeObjectURL(ref.previewUrl);
         await refreshReferences();
       }
-      const target = await prepareImage(await fetchAsFile(`/samples/target-${kind}.png`, `target-${kind}.png`));
+      const target = await prepareImage(await fetchAsFile(`/samples/target-${kind}.jpg`, `target-${kind}.jpg`));
       for (const img of images) URL.revokeObjectURL(img.previewUrl);
       setImages([target]);
       setItemLabel(SAMPLE_LABEL);
@@ -479,7 +479,7 @@ export default function App() {
         ) : null}
 
         <footer className="footer">
-          <b>matsuu demo lab</b> / 判定は Gemini による画像解析です
+          <b>MEKIKI</b> by matsuu demo lab / 判定は Gemini による画像解析です
         </footer>
       </main>
     </>

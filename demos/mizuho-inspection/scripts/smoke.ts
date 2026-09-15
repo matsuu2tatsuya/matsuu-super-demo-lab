@@ -1,11 +1,12 @@
 /**
  * サーバーを立てずに Gemini 連携だけを確かめる。
- *   pnpm dlx tsx scripts/smoke.ts [画像パス] [--levels=LOW,HIGH] [--res=HIGH]
+ *   pnpm dlx tsx scripts/smoke.ts [画像パス] [--levels=LOW,HIGH] [--res=HIGH] [--ref=public/samples/reference.jpg] [--criteria]
+ * --ref で見本写真を渡し、--criteria で同梱サンプルの品質基準(SAMPLE_CRITERIA)を付ける。
  * API キーは環境変数 GEMINI_API_KEY か .dev.vars から読む。
  */
 import { existsSync, readFileSync } from "node:fs";
 import { inspectImages, type MediaResolution, type ThinkingLevel } from "../shared/gemini";
-import type { ImageMimeType } from "../shared/contract";
+import { SAMPLE_CRITERIA, SAMPLE_LABEL, type ImageMimeType, type InspectRequestImage } from "../shared/contract";
 
 function loadDevVars(): Record<string, string> {
   if (!existsSync(".dev.vars")) return {};
@@ -31,16 +32,21 @@ const levels = opt("levels", "LOW").split(",");
 const resName = opt("res", "HIGH");
 const mediaResolution: MediaResolution = resName === "MEDIUM" ? "MEDIA_RESOLUTION_MEDIUM" : resName === "LOW" ? "MEDIA_RESOLUTION_LOW" : "MEDIA_RESOLUTION_HIGH";
 
-const images = (files.length ? files : ["scripts/sample.png"]).map((path) => {
+function readImage(path: string): InspectRequestImage {
   const lower = path.toLowerCase();
   const mimeType: ImageMimeType = lower.endsWith(".png") ? "image/png" : lower.endsWith(".webp") ? "image/webp" : "image/jpeg";
   return { mimeType, dataBase64: readFileSync(path).toString("base64") };
-});
+}
+
+const images = (files.length ? files : ["scripts/sample.jpg"]).map(readImage);
+const refPaths = opt("ref", "").split(",").filter(Boolean);
+const useCriteria = args.includes("--criteria");
+const reference = refPaths.length || useCriteria ? { label: SAMPLE_LABEL, criteria: useCriteria ? SAMPLE_CRITERIA : "", images: refPaths.map(readImage) } : null;
 
 for (const levelName of levels) {
   const thinkingLevel: ThinkingLevel = levelName === "MINIMAL" || levelName === "MEDIUM" || levelName === "HIGH" ? levelName : "LOW";
-  const res = await inspectImages({ itemLabel: "smoke", images }, { apiKey, model, thinkingLevel, mediaResolution });
-  console.log(`\n=== thinking=${levelName} res=${resName} model=${model} ===`);
+  const res = await inspectImages({ itemLabel: reference ? SAMPLE_LABEL : "smoke", images, reference }, { apiKey, model, thinkingLevel, mediaResolution });
+  console.log(`\n=== thinking=${levelName} res=${resName} model=${model} ref=${refPaths.length} criteria=${useCriteria} ===`);
   console.log(`verdict=${res.verdict} latency=${res.latencyMs}ms reason=${res.reasonJa}`);
   for (const img of res.images) {
     console.log(`- image ${img.imageIndex}: quality=${img.quality} ${img.qualityNoteJa}`);

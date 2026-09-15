@@ -1,4 +1,5 @@
 import { MdScience, MdThumbDown, MdThumbUp } from "react-icons/md";
+import { SAMPLE_LABEL } from "../../shared/contract";
 
 export type SampleKind = "ok" | "ng";
 
@@ -18,7 +19,7 @@ export function SamplePanel({ loading, disabled, onLoad }: Props) {
         <h2>テストデータで試す</h2>
       </div>
       <p className="note" style={{ marginTop: 0 }}>
-        同梱のサンプル(型番 SAMPLE-BOX)を読み込みます。見本と基準を登録した状態になるので、「見本と基準を使う」の ON / OFF で結果の違いを見られます。
+        実物のグレー塗装の鉄製ボックス(型番 {SAMPLE_LABEL})を撮った写真を読み込みます。見本と基準を登録した状態になるので、「見本と基準を使う」の ON / OFF で結果の違いを見られます。
       </p>
       <div className="btn-row">
         <button type="button" className="btn btn-secondary" disabled={disabled || loading !== null} onClick={() => onLoad("ok")}>
@@ -30,6 +31,9 @@ export function SamplePanel({ loading, disabled, onLoad }: Props) {
           {loading === "ng" ? "読み込み中" : "不良品サンプル"}
         </button>
       </div>
+      <p className="note credit">
+        写真: nimrlondon「Breathalyzer in Metal Box」(Flickr, CC BY 2.0) を切り抜いて使用
+      </p>
     </section>
   );
 }

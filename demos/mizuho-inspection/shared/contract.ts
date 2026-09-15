@@ -53,10 +53,12 @@ export type ImageMimeType = (typeof IMAGE_MIME_TYPES)[number];
 export const MAX_REFERENCE_IMAGES = 2;
 export const MAX_CRITERIA_LENGTH = 1000;
 export const MAX_REFERENCES = 50;
-/** 同梱サンプルの型番 */
-export const SAMPLE_LABEL = "SAMPLE-BOX";
-export const SAMPLE_CRITERIA = `対象は塗装済み鉄製ボックスの外面。四隅の取付穴、中央の継ぎ目、右上の刻印プレート、下部の通気スリットは製品の仕様。
-長さ 5mm 以上の傷、指で触って分かる凹みは NG。塗装ムラは目立つ範囲が 3cm 以上なら NG、それ未満は軽微。
+/** 同梱サンプルの型番(実写: グレーのハンマートーン塗装をした鉄製ボックス) */
+export const SAMPLE_LABEL = "MB-200";
+export const SAMPLE_CRITERIA = `対象はグレーのハンマートーン塗装(ちぢみ模様)を施した鉄製ボックスの外面。塗装面の細かい粒状の模様は仕様であり、ムラや傷ではない。
+天面の取っ手と蝶番プレート、蓋と本体の合わせ目に沿う帯金具、側面の留め金と鍵穴、底面の脚は製品の仕様。金具の金属色や色の違いも不良ではない。
+顧客の基準は厳しく、塗装面に線状の引っかき傷が 1 本でもあれば長さを問わず NG(severity は major)。塗装が剥がれて下地が見えている箇所、指で触って分かる凹みも NG。
+1〜2mm 程度の点状の跡だけなら軽微。塗装ムラは目立つ範囲が 3cm 以上なら NG、それ未満は軽微。
 照明の映り込みと影は不良ではない。内側は今回の検品対象外。`;
 
 export interface ReferenceMeta {
