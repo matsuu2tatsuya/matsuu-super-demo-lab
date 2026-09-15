@@ -288,6 +288,10 @@ export default function App() {
         const saved = await saveReference(SAMPLE_LABEL, SAMPLE_CRITERIA, [{ mimeType: "image/jpeg", dataBase64: ref.dataBase64, thumbnailDataUrl: ref.thumbnailDataUrl }], passcode);
         URL.revokeObjectURL(ref.previewUrl);
         await refreshReferences({ upsert: saved });
+      } else if (referencesEnabled && existing && existing.criteria !== SAMPLE_CRITERIA) {
+        // 同梱サンプルの基準を更新したら、登録済みの見本写真はそのままに基準だけ差し替える
+        const saved = await saveReference(SAMPLE_LABEL, SAMPLE_CRITERIA, [], passcode, { keepImages: true });
+        await refreshReferences({ upsert: saved });
       }
       const target = await prepareImage(await fetchAsFile(`/samples/target-${kind}.jpg`, `target-${kind}.jpg`));
       for (const img of images) URL.revokeObjectURL(img.previewUrl);
