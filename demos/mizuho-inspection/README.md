@@ -30,6 +30,8 @@
 
 本番で撮った動作確認のスクリーンショットは [docs/screenshots/](docs/screenshots/README.md) にある。
 
+手元で追加して試せる画像(同じ製品の別アングル、別製品、新しい型番として登録する例)は [docs/extra-samples/](docs/extra-samples/README.md) にある。
+
 ## 構成
 
 | パス | 役割 |
