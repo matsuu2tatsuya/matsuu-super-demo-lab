@@ -11,20 +11,12 @@ import {
   MdRefresh,
   MdSaveAlt,
 } from "react-icons/md";
-import {
-  MAX_IMAGES,
-  MAX_ITEM_LABEL_LENGTH,
-  SAMPLE_CRITERIA,
-  SAMPLE_LABEL,
-  type ConfigResponse,
-  type InspectResponse,
-  type ReferenceMeta,
-} from "../shared/contract";
+import { MAX_IMAGES, MAX_ITEM_LABEL_LENGTH, type ConfigResponse, type InspectResponse, type ReferenceMeta } from "../shared/contract";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { PhotoPicker } from "./components/PhotoPicker";
 import { ReferencePanel } from "./components/ReferencePanel";
 import { ResultView } from "./components/ResultView";
-import { SamplePanel, type SampleKind } from "./components/SamplePanel";
+import { SamplePanel, type SampleChoice } from "./components/SamplePanel";
 import { ApiClientError, apiErrorMessage, fetchConfig, inspect, listReferences, normalizeLabel, saveReference } from "./lib/api";
 import { clearHistory, loadHistory, saveHistory, type HistoryEntry } from "./lib/history";
 import { prepareErrorMessage, prepareImage, type PreparedImage } from "./lib/image";
@@ -134,7 +126,7 @@ export default function App() {
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
   const [references, setReferences] = useState<ReferenceMeta[]>([]);
   const [useReference, setUseReference] = useState(true);
-  const [sampleLoading, setSampleLoading] = useState<SampleKind | null>(null);
+  const [sampleLoading, setSampleLoading] = useState<string | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const inspectRef = useRef<HTMLDivElement>(null);
   const elapsed = useElapsedSeconds(busy);
@@ -278,25 +270,25 @@ export default function App() {
     setHistory([]);
   };
 
-  const loadSample = async (kind: SampleKind) => {
-    setSampleLoading(kind);
+  const loadSample = async ({ set, target: sampleTarget }: SampleChoice) => {
+    setSampleLoading(`${set.id}:${sampleTarget.id}`);
     setError(null);
     try {
-      const existing = references.find((r) => normalizeLabel(r.label) === normalizeLabel(SAMPLE_LABEL));
+      const existing = references.find((r) => normalizeLabel(r.label) === normalizeLabel(set.label));
       if (referencesEnabled && (!existing || existing.imageCount === 0)) {
-        const ref = await prepareImage(await fetchAsFile("/samples/reference.jpg", "reference.jpg"));
-        const saved = await saveReference(SAMPLE_LABEL, SAMPLE_CRITERIA, [{ mimeType: "image/jpeg", dataBase64: ref.dataBase64, thumbnailDataUrl: ref.thumbnailDataUrl }], passcode);
+        const ref = await prepareImage(await fetchAsFile(set.reference, "reference.jpg"));
+        const saved = await saveReference(set.label, set.criteria, [{ mimeType: "image/jpeg", dataBase64: ref.dataBase64, thumbnailDataUrl: ref.thumbnailDataUrl }], passcode);
         URL.revokeObjectURL(ref.previewUrl);
         await refreshReferences({ upsert: saved });
-      } else if (referencesEnabled && existing && existing.criteria !== SAMPLE_CRITERIA) {
+      } else if (referencesEnabled && existing && existing.criteria !== set.criteria) {
         // 同梱サンプルの基準を更新したら、登録済みの見本写真はそのままに基準だけ差し替える
-        const saved = await saveReference(SAMPLE_LABEL, SAMPLE_CRITERIA, [], passcode, { keepImages: true });
+        const saved = await saveReference(set.label, set.criteria, [], passcode, { keepImages: true });
         await refreshReferences({ upsert: saved });
       }
-      const target = await prepareImage(await fetchAsFile(`/samples/target-${kind}.jpg`, `target-${kind}.jpg`));
+      const target = await prepareImage(await fetchAsFile(sampleTarget.file, sampleTarget.file.split("/").pop() ?? "sample.jpg"));
       for (const img of images) URL.revokeObjectURL(img.previewUrl);
       setImages([target]);
-      setItemLabel(SAMPLE_LABEL);
+      setItemLabel(set.label);
       setUseReference(true);
       setResult(null);
       setTimeout(() => inspectRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);

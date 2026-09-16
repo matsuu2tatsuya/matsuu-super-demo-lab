@@ -29,3 +29,6 @@ dist-ssr
 !.dev.vars.example
 .env*
 !.env.example
+
+# 顧客から預かった実物写真。公開リポジトリには入れない(デプロイには含まれる)
+public/samples/white/

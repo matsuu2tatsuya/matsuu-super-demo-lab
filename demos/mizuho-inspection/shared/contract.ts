@@ -53,6 +53,29 @@ export type ImageMimeType = (typeof IMAGE_MIME_TYPES)[number];
 export const MAX_REFERENCE_IMAGES = 2;
 export const MAX_CRITERIA_LENGTH = 1000;
 export const MAX_REFERENCES = 50;
+/** 同梱サンプル。画面の「テストデータで試す」から読み込む。 */
+export interface SampleTarget {
+  id: string;
+  name: string;
+  /** public/ 配下のパス */
+  file: string;
+}
+export interface SampleSet {
+  id: string;
+  /** 見本を登録する型番 */
+  label: string;
+  title: string;
+  description: string;
+  credit?: string;
+  reference: string;
+  criteria: string;
+  targets: SampleTarget[];
+}
+
+export const WHITE_SAMPLE_CRITERIA = `対象は白色塗装の鉄製ボックス(消火器格納箱)の外面。円形のノックアウト(丸い打ち抜き線の凸凹)、取付用の丸穴、板の縁や折り曲げ部は製品の仕様であり不良ではない。
+顧客の基準は厳しい。平らな塗装面に入った線状の引っかき傷は、細くても短くても NG(severity は major)。塗装が剥がれて下地の金属色が見えている箇所や塗り残しも NG。指で触って分かる凹みも NG。
+照明の映り込み、影、白飛び、背景の床は不良ではない。ホコリや糸くずのような付着物は「その他」の軽微として報告する。`;
+
 /** 同梱サンプルの型番(実写: グレーのハンマートーン塗装をした鉄製ボックス) */
 export const SAMPLE_LABEL = "MB-200";
 export const SAMPLE_CRITERIA = `対象はグレーのハンマートーン塗装(ちぢみ模様)を施した鉄製ボックスの外面。塗装面の細かい粒状の模様は仕様であり、ムラや傷ではない。
@@ -62,6 +85,35 @@ export const SAMPLE_CRITERIA = `対象はグレーのハンマートーン塗装
 1〜2mm 程度の点状の跡や、帯金具・留め金まわりのわずかな黒ずみは許容範囲なので報告しない。
 塗装ムラは目立つ範囲が 3cm 以上なら NG、それ未満は軽微。
 照明の映り込みと影は不良ではない。内側は今回の検品対象外。`;
+
+export const SAMPLE_SETS: SampleSet[] = [
+  {
+    id: "white",
+    label: "FB-W",
+    title: "白色塗装ボックス(実物の写真)",
+    description: "消火器格納箱などに使う白色塗装の鉄製ボックス。平らな白い面に入った細い線傷を拾えるかを見る。",
+    reference: "/samples/white/reference.jpg",
+    criteria: WHITE_SAMPLE_CRITERIA,
+    targets: [
+      { id: "ok", name: "良品", file: "/samples/white/ok.jpg" },
+      { id: "ng1", name: "不良品 1", file: "/samples/white/ng1.jpg" },
+      { id: "ng2", name: "不良品 2", file: "/samples/white/ng2.jpg" },
+    ],
+  },
+  {
+    id: "grey",
+    label: SAMPLE_LABEL,
+    title: "グレー塗装ボックス",
+    description: "ハンマートーン塗装の鉄製ケース。見本があると模様や金具を不良と誤認しなくなることを見る。",
+    credit: "写真: nimrlondon「Breathalyzer in Metal Box」(Flickr, CC BY 2.0) を切り抜いて使用",
+    reference: "/samples/grey/reference.jpg",
+    criteria: SAMPLE_CRITERIA,
+    targets: [
+      { id: "ok", name: "良品", file: "/samples/grey/ok.jpg" },
+      { id: "ng", name: "不良品", file: "/samples/grey/ng.jpg" },
+    ],
+  },
+];
 
 export interface ReferenceMeta {
   label: string;

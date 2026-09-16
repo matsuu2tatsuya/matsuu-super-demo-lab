@@ -40,12 +40,16 @@ function readImage(path: string): InspectRequestImage {
 
 const images = (files.length ? files : ["scripts/sample.jpg"]).map(readImage);
 const refPaths = opt("ref", "").split(",").filter(Boolean);
-const useCriteria = args.includes("--criteria");
-const reference = refPaths.length || useCriteria ? { label: SAMPLE_LABEL, criteria: useCriteria ? SAMPLE_CRITERIA : "", images: refPaths.map(readImage) } : null;
+// --criteria で同梱サンプルの基準、--criteria=path.txt でファイルの基準を使う
+const criteriaOpt = opt("criteria", "");
+const useCriteria = args.includes("--criteria") || Boolean(criteriaOpt);
+const criteria = criteriaOpt ? readFileSync(criteriaOpt, "utf8").trim() : useCriteria ? SAMPLE_CRITERIA : "";
+const label = opt("label", SAMPLE_LABEL);
+const reference = refPaths.length || useCriteria ? { label, criteria, images: refPaths.map(readImage) } : null;
 
 for (const levelName of levels) {
   const thinkingLevel: ThinkingLevel = levelName === "MINIMAL" || levelName === "MEDIUM" || levelName === "HIGH" ? levelName : "LOW";
-  const res = await inspectImages({ itemLabel: reference ? SAMPLE_LABEL : "smoke", images, reference }, { apiKey, model, thinkingLevel, mediaResolution });
+  const res = await inspectImages({ itemLabel: reference ? label : "smoke", images, reference }, { apiKey, model, thinkingLevel, mediaResolution });
   console.log(`\n=== thinking=${levelName} res=${resName} model=${model} ref=${refPaths.length} criteria=${useCriteria} ===`);
   console.log(`verdict=${res.verdict} latency=${res.latencyMs}ms reason=${res.reasonJa}`);
   for (const img of res.images) {
